@@ -21,7 +21,7 @@ services:
     image: amir20/dozzle:latest
     command: agent
     environment:
-      DOZZLE_HOSTNAME: "${DOZZLE_AGENT_HOSTNAME:-linux-host}"
+      DOZZLE_HOSTNAME: "${DOZZLE_AGENT_HOSTNAME:-${HOSTNAME}}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
