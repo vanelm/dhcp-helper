@@ -1,6 +1,10 @@
 FROM golang:1.25-bookworm AS build
 
-RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -o Acquire::AllowInsecureRepositories=true \
+    && apt-get install -y --allow-unauthenticated debian-archive-keyring \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libpcap-dev \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
