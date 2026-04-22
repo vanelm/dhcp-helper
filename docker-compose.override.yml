@@ -20,6 +20,9 @@ services:
   dozzle-agent:
     image: amir20/dozzle:latest
     command: agent
+    hostname: nas4-agent
+    environment:
+      DOZZLE_HOSTNAME: nas4
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
