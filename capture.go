@@ -84,7 +84,7 @@ func processDHCP(pkt gopacket.Packet, iface string, conn *net.UDPConn, st *stats
 		"iface", iface,
 		"vlan", vlanID,
 		"type", dhcpMsgTypeName(mt),
-		"mac", fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", payload[28], payload[29], payload[30], payload[31], payload[32], payload[33]),
+		"mac", fmt.Sprintf("%02X-%02X-%02X-%02X-%02X-%02X", payload[28], payload[29], payload[30], payload[31], payload[32], payload[33]),
 		"size", len(payload),
 	)
 }
