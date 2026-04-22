@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"net"
 
 	"github.com/google/gopacket"
@@ -12,7 +13,7 @@ import (
 func capture(stop <-chan struct{}, iface string, snapLen int32, conn *net.UDPConn, st *stats) {
 	handle, err := pcap.OpenLive(iface, snapLen, true, pcap.BlockForever) // promiscuous=true
 	if err != nil {
-		log.Printf("[%s] pcap open: %v", iface, err)
+		slog.Error("pcap open failed", "iface", iface, "err", err)
 		return
 	}
 
@@ -23,12 +24,12 @@ func capture(stop <-chan struct{}, iface string, snapLen int32, conn *net.UDPCon
 	}()
 
 	if err := handle.SetBPFFilter("udp and (port 67 or port 68)"); err != nil {
-		log.Printf("[%s] bpf filter: %v", iface, err)
+		slog.Error("bpf filter set failed", "iface", iface, "err", err)
 		handle.Close()
 		return
 	}
 
-	log.Printf("[%s] promiscuous capture started", iface)
+	slog.Info("promiscuous capture started", "iface", iface)
 
 	src := gopacket.NewPacketSource(handle, handle.LinkType())
 	src.NoCopy = true
@@ -36,7 +37,7 @@ func capture(stop <-chan struct{}, iface string, snapLen int32, conn *net.UDPCon
 		processDHCP(pkt, iface, conn, st)
 	}
 
-	log.Printf("[%s] capture stopped", iface)
+	slog.Info("capture stopped", "iface", iface)
 }
 
 func processDHCP(pkt gopacket.Packet, iface string, conn *net.UDPConn, st *stats) {
@@ -73,10 +74,19 @@ func processDHCP(pkt gopacket.Packet, iface string, conn *net.UDPConn, st *stats
 
 	// Forward raw DHCP bytes to profiler
 	if _, err := conn.Write(payload); err != nil {
+		slog.Error("forward failed", "iface", iface, "err", err)
 		st.incrError(iface)
 		return
 	}
 	st.incrForwarded(iface, vlanID)
+
+	slog.Debug("dhcp forwarded",
+		"iface", iface,
+		"vlan", vlanID,
+		"type", dhcpMsgTypeName(mt),
+		"mac", fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", payload[28], payload[29], payload[30], payload[31], payload[32], payload[33]),
+		"size", len(payload),
+	)
 }
 
 // dhcpMsgType parses DHCP options to find option 53 (Message Type).
@@ -99,4 +109,15 @@ func dhcpMsgType(opts []byte) byte {
 		i += 2 + l
 	}
 	return 0
+}
+
+func dhcpMsgTypeName(t byte) string {
+	switch t {
+	case 1:
+		return "DISCOVER"
+	case 3:
+		return "REQUEST"
+	default:
+		return fmt.Sprintf("type%d", t)
+	}
 }

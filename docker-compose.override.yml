@@ -1,0 +1,27 @@
+# Debug override: enables per-packet logging and adds Dozzle agent.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+#
+# After starting the agent, add it to your central Dozzle server
+# (at 192.168.86.15:8888) by restarting it with:
+#   --remote-agent=<this-linux-host-ip>:7007
+# or via environment variable:
+#   DOZZLE_REMOTE_AGENT=<this-linux-host-ip>:7007
+
+services:
+  dhcp-helper:
+    command: [
+      "-i", "${DHCP_IFACES:-eth0}",
+      "-t", "${DHCP_TARGET:-profiler-ms:4578}",
+      "-debug"
+    ]
+
+  dozzle-agent:
+    image: amir20/dozzle:latest
+    command: agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7007:7007"
+    restart: unless-stopped

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -26,6 +26,7 @@ func main() {
 	ifaces := flag.String("i", "", "comma-separated capture interfaces")
 	target := flag.String("t", "", "profiler DHCP listener address (host:port)")
 	daemon := flag.Bool("d", false, "daemonize")
+	debug := flag.Bool("debug", false, "enable debug-level logging (per-packet)")
 	sock := flag.String("s", "/var/run/dhcp-helper.sock", "stats unix socket path")
 	pidFile := flag.String("p", "/var/run/dhcp-helper.pid", "PID file (daemon mode)")
 	logFile := flag.String("l", "/var/log/dhcp-helper.log", "log file (daemon mode)")
@@ -46,6 +47,12 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	level := slog.LevelInfo
+	if *debug {
+		level = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
 	// Daemon: re-exec without -d, redirect output, exit parent
 	if *daemon {
@@ -72,7 +79,8 @@ func daemonize(pidFile, logPath string) {
 
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		log.Fatalf("open log %s: %v", logPath, err)
+		fmt.Fprintf(os.Stderr, "open log %s: %v\n", logPath, err)
+		os.Exit(1)
 	}
 
 	cmd := exec.Command(os.Args[0], args...)
@@ -81,7 +89,8 @@ func daemonize(pidFile, logPath string) {
 	cmd.Stderr = f
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("fork: %v", err)
+		fmt.Fprintf(os.Stderr, "fork: %v\n", err)
+		os.Exit(1)
 	}
 	fmt.Printf("dhcp-helper started (PID %d), log: %s\n", cmd.Process.Pid, logPath)
 }
@@ -89,11 +98,13 @@ func daemonize(pidFile, logPath string) {
 func run(ifaces []string, target, sockPath string, snapLen int32) {
 	addr, err := net.ResolveUDPAddr("udp", target)
 	if err != nil {
-		log.Fatalf("resolve %s: %v", target, err)
+		slog.Error("resolve target", "addr", target, "err", err)
+		os.Exit(1)
 	}
 	conn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
-		log.Fatalf("dial %s: %v", target, err)
+		slog.Error("dial target", "addr", target, "err", err)
+		os.Exit(1)
 	}
 	defer conn.Close()
 
@@ -117,13 +128,13 @@ func run(ifaces []string, target, sockPath string, snapLen int32) {
 		}(name)
 	}
 
-	log.Printf("dhcp-helper %s: interfaces=%v target=%s", version, ifaces, target)
+	slog.Info("dhcp-helper started", "version", version, "interfaces", ifaces, "target", target)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
-	log.Println("shutting down")
+	slog.Info("shutting down")
 	close(stop)
 	wg.Wait()
 }

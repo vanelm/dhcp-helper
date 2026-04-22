@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"sort"
@@ -117,7 +117,7 @@ func serveStats(sockPath string, st *stats) {
 	os.Remove(sockPath)
 	ln, err := net.Listen("unix", sockPath)
 	if err != nil {
-		log.Printf("stats socket %s: %v", sockPath, err)
+		slog.Error("stats socket listen failed", "path", sockPath, "err", err)
 		return
 	}
 	defer ln.Close()
