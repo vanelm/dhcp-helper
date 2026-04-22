@@ -75,17 +75,29 @@ Uptime: 2h15m30s  |  Total forwarded: 4821
 
 ## Deployment
 
-### Docker
+### Docker (docker compose)
+
+```bash
+git clone https://github.com/vanelm/dhcp-helper.git
+cd dhcp-helper
+cp .env.example .env
+# edit .env — set DHCP_IFACES and DHCP_TARGET
+docker compose up -d --build
+```
+
+> `network_mode: host` is required so the container can see host network interfaces.  
+> Linux host only — Docker Desktop on Windows/macOS cannot access physical NICs.
+
+### Docker (manual)
 
 ```bash
 docker run -d \
   --name dhcp-helper \
   --net=host \
   --cap-add=NET_RAW \
+  --cap-add=NET_ADMIN \
   dhcp-helper -i eth0 -t profiler:6767
 ```
-
-> `--net=host` is required so the container can see host network interfaces.
 
 ### systemd
 

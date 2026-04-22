@@ -1,0 +1,15 @@
+services:
+  dhcp-helper:
+    build: .
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    restart: unless-stopped
+    command: [
+      "-i", "${DHCP_IFACES:-eth0}",
+      "-t", "${DHCP_TARGET:-profiler-ms:4578}"
+    ]
+    environment:
+      - DHCP_IFACES
+      - DHCP_TARGET
