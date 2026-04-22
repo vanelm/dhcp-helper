@@ -1,0 +1,5 @@
+# Comma-separated interfaces to capture in promiscuous mode
+INTERFACES=eth0
+
+# Profiler DHCP listener address (host:port)
+TARGET=localhost:6767
